@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ScamShield: check a message before you act on it</title>
+<meta name="description" content="Paste a suspicious SMS, WhatsApp or email. See exactly what gives it away, and what the web says about it.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.5 4.5 5.5v6c0 4.7 3.1 8.2 7.5 10 4.4-1.8 7.5-5.3 7.5-10v-6L12 2.5Z' fill='%231B3A6B'/%3E%3Cpath d='m8.5 12 2.5 2.5 4.5-5' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Devanagari:wght@400;600&family=Schibsted+Grotesk:wght@400;500;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F5F6F8; --surface:#FFFFFF; --ink:#14181F; --muted:#5B6573; --rule:#D5DAE1;
+  --red:#B3261E; --amber:#945700; --green:#176B4D; --accent:#1B3A6B; --on-accent:#fff;
+  --sans:"Schibsted Grotesk","Noto Sans Devanagari",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{--paper:#0E1218; --surface:#151B23; --ink:#E8ECF1; --muted:#96A3B3; --rule:#2A3340;
+    --red:#FF7A70; --amber:#F0B35A; --green:#5FD0A3; --accent:#8FB0F5; --on-accent:#0E1218;}
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 17px/1.6 var(--sans);padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+.wrap{max-width:960px;margin:0 auto;padding:24px 20px 64px}
+.brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:19px;color:var(--ink)}
+.brand svg{color:var(--accent)}
+h1{font-weight:800;font-size:clamp(34px,6vw,56px);line-height:1.04;letter-spacing:-.025em;margin:44px 0 12px;max-width:17ch}
+.lede{color:var(--muted);max-width:56ch;margin:0 0 28px;font-size:19px}
+
+/* composer */
+label.cap{display:block;font-weight:600;margin-bottom:8px}
+textarea{width:100%;min-height:150px;resize:vertical;border:1px solid var(--rule);border-radius:10px;background:var(--surface);color:var(--ink);font:400 17px/1.55 var(--sans);padding:14px 16px}
+textarea::placeholder{color:var(--muted)}
+.bar{display:flex;flex-wrap:wrap;gap:14px 20px;align-items:center;justify-content:space-between;margin-top:12px}
+.try{color:var(--muted);font-size:15px}
+.try button{background:none;border:0;padding:0;margin:0 0 0 10px;color:var(--accent);font:500 15px var(--sans);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.ctl{display:flex;gap:12px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--muted);padding:9px 12px;font:500 14px var(--sans);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
+.go{border:0;border-radius:8px;background:var(--accent);color:var(--on-accent);font:600 17px var(--sans);padding:11px 24px;cursor:pointer}
+.go:disabled{opacity:.55;cursor:progress}
+:is(textarea,button,a,summary):focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.fine{color:var(--muted);font-size:14px;margin:12px 0 0}
+
+/* progress */
+.progress{margin-top:36px;display:grid;gap:12px;max-width:420px;list-style:none;padding:0}
+.progress li{display:flex;gap:12px;color:var(--muted)}
+.progress .dot{width:12px;height:12px;margin-top:7px;border-radius:50%;border:2px solid var(--rule);flex:none}
+.progress li.running{color:var(--ink)} .progress li.running .dot{border-color:var(--accent);border-top-color:transparent;animation:spin .8s linear infinite}
+.progress li.done{color:var(--ink)} .progress li.done .dot{background:var(--green);border-color:var(--green)}
+.progress small{display:block;color:var(--muted);font:400 13px/1.4 var(--mono);overflow-wrap:anywhere}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* result */
+#out{margin-top:40px}
+.v-scam,.v-likely_scam{--vc:var(--red)} .v-suspicious,.v-unclear{--vc:var(--amber)} .v-likely_safe{--vc:var(--green)}
+.top{display:grid;grid-template-columns:auto 1fr;gap:32px;align-items:center;padding:8px 0 32px;border-bottom:1px solid var(--rule)}
+@media(max-width:640px){.top{grid-template-columns:1fr;gap:22px}}
+.stamp{color:var(--vc);border:3px solid var(--vc);outline:2px solid var(--vc);outline-offset:3px;border-radius:6px;padding:12px 22px;transform:rotate(-3deg);text-align:center;justify-self:start;animation:thunk .35s cubic-bezier(.2,1.4,.4,1) both}
+.stamp b{display:block;font-weight:800;font-size:clamp(28px,5vw,42px);line-height:1;text-transform:uppercase;letter-spacing:.02em}
+.stamp small{display:block;margin-top:6px;font:500 14px var(--mono)}
+@keyframes thunk{from{transform:rotate(-3deg) scale(1.35);opacity:0}to{transform:rotate(-3deg) scale(1);opacity:1}}
+.summary h2{font-weight:800;font-size:clamp(24px,4vw,34px);line-height:1.12;letter-spacing:-.015em;margin:0 0 8px}
+.summary p{margin:0;max-width:60ch}
+.track{height:6px;border-radius:3px;background:var(--rule);margin:18px 0 6px;max-width:360px}
+.track i{display:block;height:100%;border-radius:3px;background:var(--vc)}
+
+h3{font-weight:800;font-size:21px;letter-spacing:-.01em;margin:0 0 14px}
+section.blk{padding:30px 0;border-bottom:1px solid var(--rule)}
+.exhibit{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:36px;align-items:start}
+@media(max-width:760px){.exhibit{grid-template-columns:1fr;gap:24px}}
+.msg{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:18px 20px;font:400 15px/1.85 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere}
+mark{background:color-mix(in srgb,var(--red) 16%,transparent);color:inherit;box-shadow:inset 0 -2px 0 var(--red);padding:1px 0}
+mark sup{display:inline-grid;place-items:center;min-width:17px;height:17px;border-radius:9px;background:var(--red);color:var(--paper);font:600 11px var(--sans);margin-left:3px;vertical-align:super;line-height:1}
+ol.notes{list-style:none;margin:0;padding:0;display:grid;gap:16px}
+ol.notes li{display:grid;grid-template-columns:24px 1fr;gap:10px}
+.badge{display:grid;place-items:center;width:22px;height:22px;border-radius:11px;background:var(--red);color:var(--paper);font:600 12px var(--sans);margin-top:3px}
+ol.notes strong{font-weight:600;overflow-wrap:anywhere} ol.notes p{margin:2px 0 0;color:var(--muted);font-size:15px}
+details{margin-top:16px} summary{cursor:pointer;color:var(--muted);font-size:15px}
+ul.plain{margin:8px 0 0;padding-left:20px;color:var(--muted);font-size:15px}
+
+ul.ev{list-style:none;padding:0;margin:0;display:grid;gap:14px}
+ul.ev li{border-left:3px solid var(--rule);padding:2px 0 2px 14px}
+ul.ev li.s-scam{border-color:var(--red)} ul.ev li.s-safe{border-color:var(--green)}
+.src{font-weight:600;font-size:15px;color:var(--accent);overflow-wrap:anywhere}
+.lab{color:var(--muted);font-size:14px;margin-left:8px}
+
+.two{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:36px;align-items:start}
+@media(max-width:760px){.two{grid-template-columns:1fr;gap:28px}}
+ol.todo{margin:0;padding-left:22px} ol.todo li{margin:8px 0;padding-left:4px} ol.todo li::marker{font-weight:800}
+.help{border-left:4px solid var(--red);padding:2px 0 2px 16px}
+.help p{margin:4px 0 10px}
+.help a{font-weight:600;color:var(--accent);margin-right:18px}
+
+.how{padding-top:24px;color:var(--muted);font-size:14px}
+.how ul{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:4px}
+.how code{font:400 13px var(--mono);color:var(--ink);overflow-wrap:anywhere}
+.btn2{border:1px solid var(--rule);background:transparent;color:var(--ink);border-radius:8px;padding:8px 14px;font:500 15px var(--sans);cursor:pointer;margin-top:22px}
+.err{border-left:4px solid var(--red);padding:6px 0 6px 16px}
+footer{margin-top:56px;color:var(--muted);font-size:14px;max-width:68ch}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 4.5 5.5v6c0 4.7 3.1 8.2 7.5 10 4.4-1.8 7.5-5.3 7.5-10v-6L12 2.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m8.5 12 2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    ScamShield
+  </div>
+
+  <h1 id="h1">Got a message that feels off?</h1>
+  <p class="lede" id="lede">Paste it here before you click, call or pay. You'll see what gives it away, and what the web says about it.</p>
+
+  <label class="cap" for="msg" id="cap">The message you received</label>
+  <textarea id="msg" maxlength="3000" placeholder="Paste the SMS, WhatsApp or email text, including any links or phone numbers"></textarea>
+  <div class="bar">
+    <span class="try"><span id="tryl">Try one:</span>
+      <button data-ex="kyc">bank alert</button><button data-ex="job">job offer</button><button data-ex="lottery">prize win</button><button data-ex="otp">normal OTP</button>
+    </span>
+    <div class="ctl">
+      <div class="seg" role="group" aria-label="Answer language">
+        <button type="button" data-lang="en" aria-pressed="true">English</button>
+        <button type="button" data-lang="hi" aria-pressed="false">हिन्दी</button>
+      </div>
+      <button class="go" id="go">Check message</button>
+    </div>
+  </div>
+  <p class="fine" id="privacy">Your message isn't stored. Don't click links or call numbers in it while checking.</p>
+
+  <div id="out" aria-live="polite"></div>
+
+  <footer>Built with NVIDIA Nemotron models on Nebius Token Factory, with live evidence from Tavily. ScamShield is guidance, not legal or financial advice, and it can be wrong. For anything involving money, confirm with your bank using the number on your card.</footer>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const EX = {
+  kyc: "Dear customer, your SBI YONO account will be blocked today. Update your KYC immediately: http://sbi-kyc-update.xyz/login or call 9876501234. Ignore and your account will be suspended.",
+  job: "Hi! Work from home, earn ₹5,000-₹15,000 daily just by liking YouTube videos. Limited seats. Pay ₹999 registration fee to UPI hrteam@ybl and send screenshot on WhatsApp to start today.",
+  lottery: "Congratulations! Your mobile number won ₹25,00,000 in the KBC Lucky Draw. To claim, pay ₹4,500 processing fee and share your Aadhaar and OTP with our officer. Call +91 98765 43210 now.",
+  otp: "482913 is your OTP for logging in to your Zerodha account. Do not share it with anyone. It is valid for 10 minutes."
+};
+const STEPS = {
+  en: {extract: "Reading the message", search: "Checking the web", verdict: "Weighing the evidence"},
+  hi: {extract: "संदेश पढ़ रहे हैं", search: "वेब पर जाँच", verdict: "सबूत तौल रहे हैं"}
+};
+const LABEL = {
+  scam: ["Scam", "घोटाला"], likely_scam: ["Likely scam", "संभावित घोटाला"], suspicious: ["Suspicious", "संदिग्ध"],
+  unclear: ["Unclear", "अस्पष्ट"], likely_safe: ["Looks genuine", "असली लगता है"]
+};
+const T = {
+  en: {h1: "Got a message that feels off?", lede: "Paste it here before you click, call or pay. You'll see what gives it away, and what the web says about it.",
+       cap: "The message you received", tryl: "Try one:", ph: "Paste the SMS, WhatsApp or email text, including any links or phone numbers",
+       privacy: "Your message isn't stored. Don't click links or call numbers in it while checking.", go: "Check message",
+       msg: "What gives it away", ev: "What the web says", todo: "What to do now", acted: "If you already acted",
+       actedBody: "Tell your bank to block the transaction or card straight away, then report it. Early reports have the best chance of freezing money.",
+       call: "Call 1930", sup: {scam: "reported as a scam", safe: "looks legitimate", neutral: "background"}, risk: "Risk", conf: "confidence",
+       copy: "Copy summary", copied: "Copied", none: "No web sources matched, so this verdict rests on the message itself.",
+       sig: "Automatic checks that also fired", how: "How this was checked", short: "Paste a message of at least 10 characters.",
+       nonotes: "No specific phrases stood out."},
+  hi: {h1: "कोई संदेश संदिग्ध लग रहा है?", lede: "क्लिक करने, कॉल करने या पैसे भेजने से पहले यहाँ चिपकाएँ। आप देखेंगे कि क्या संदिग्ध है और वेब क्या कहता है।",
+       cap: "आपको मिला संदेश", tryl: "आज़माएँ:", ph: "SMS, WhatsApp या ईमेल का पाठ चिपकाएँ, लिंक और फ़ोन नंबर सहित",
+       privacy: "आपका संदेश सहेजा नहीं जाता। जाँच के दौरान उसके लिंक न खोलें और नंबर पर कॉल न करें।", go: "संदेश जाँचें",
+       msg: "क्या संदिग्ध है", ev: "वेब क्या कहता है", todo: "अभी क्या करें", acted: "अगर आप पैसे भेज चुके हैं",
+       actedBody: "तुरंत अपने बैंक से ट्रांज़ैक्शन या कार्ड ब्लॉक करने को कहें, फिर शिकायत करें। जल्दी शिकायत से पैसे फ्रीज़ होने की संभावना सबसे ज़्यादा रहती है।",
+       call: "1930 पर कॉल करें", sup: {scam: "घोटाले के रूप में रिपोर्ट", safe: "वैध लगता है", neutral: "संदर्भ"}, risk: "जोखिम", conf: "भरोसा",
+       copy: "सारांश कॉपी करें", copied: "कॉपी हो गया", none: "कोई वेब स्रोत नहीं मिला, इसलिए यह निर्णय संदेश के आधार पर है।",
+       sig: "स्वचालित जाँच के अन्य संकेत", how: "जाँच कैसे हुई", short: "कृपया कम से कम 10 अक्षर का संदेश चिपकाएँ।",
+       nonotes: "कोई खास वाक्यांश अलग से नहीं दिखा।"}
+};
+let lang = "en", busy = false;
+
+function applyLang() {
+  const t = T[lang];
+  document.documentElement.lang = lang;
+  $("#h1").textContent = t.h1; $("#lede").textContent = t.lede; $("#cap").textContent = t.cap;
+  $("#tryl").textContent = t.tryl; $("#msg").placeholder = t.ph; $("#privacy").textContent = t.privacy; $("#go").textContent = t.go;
+}
+document.querySelectorAll("[data-ex]").forEach(b => b.onclick = () => { $("#msg").value = EX[b.dataset.ex]; $("#msg").focus(); });
+document.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => {
+  lang = b.dataset.lang;
+  document.querySelectorAll("[data-lang]").forEach(x => x.setAttribute("aria-pressed", x === b));
+  applyLang();
+});
+$("#go").onclick = run;
+
+function el(tag, props = {}, ...kids) {
+  const n = Object.assign(document.createElement(tag), props);
+  kids.flat().forEach(k => n.append(k));
+  return n;
+}
+const safeUrl = u => /^https?:\/\//i.test(u) ? u : "#";
+const host = u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
+
+function exhibit(text, flags) {
+  const low = text.toLowerCase(), found = [];
+  flags.forEach(f => {
+    const s = low.indexOf(f.quote.toLowerCase());
+    if (s >= 0) found.push({s, e: s + f.quote.length, why: f.why, quote: text.slice(s, s + f.quote.length)});
+  });
+  found.sort((a, b) => a.s - b.s);
+  const used = []; let end = 0;
+  found.forEach(sp => { if (sp.s >= end) { used.push(sp); end = sp.e; } });
+  const msg = el("div", {className: "msg"});
+  let pos = 0;
+  used.forEach((sp, i) => {
+    msg.append(text.slice(pos, sp.s), el("mark", {}, sp.quote, el("sup", {textContent: String(i + 1)})));
+    pos = sp.e;
+  });
+  msg.append(text.slice(pos));
+  const notes = el("ol", {className: "notes"}, used.map((sp, i) => el("li", {},
+    el("span", {className: "badge", textContent: String(i + 1)}),
+    el("div", {}, el("strong", {textContent: sp.quote}), el("p", {textContent: sp.why})))));
+  return {msg, notes, count: used.length};
+}
+
+function showSteps(state) {
+  const names = STEPS[lang];
+  const ul = el("ul", {className: "progress"});
+  for (const id of ["extract", "search", "verdict"]) {
+    const s = state[id] || {};
+    ul.append(el("li", {className: s.status || ""}, el("span", {className: "dot"}),
+      el("div", {}, names[id], s.model ? el("small", {textContent: s.model}) : "", s.detail ? el("small", {textContent: s.detail}) : "")));
+  }
+  $("#out").replaceChildren(ul);
+}
+function showError(msg) { $("#out").replaceChildren(el("div", {className: "err", role: "alert"}, msg)); }
+
+function showResult(d, message) {
+  const t = T[lang], risky = ["scam", "likely_scam", "suspicious"].includes(d.verdict), lab = LABEL[d.verdict][lang === "hi" ? 1 : 0];
+  const box = el("div", {className: `v-${d.verdict}`});
+
+  box.append(el("div", {className: "top"},
+    el("div", {className: "stamp"}, el("b", {textContent: lab}), el("small", {textContent: `${t.risk} ${d.risk_score}/100`})),
+    el("div", {className: "summary"},
+      el("h2", {textContent: d.headline || LABEL[d.verdict][0]}),
+      el("p", {textContent: d.explanation}),
+      el("div", {className: "track", role: "img", "aria-label": `${t.risk} ${d.risk_score}/100`}, el("i", {style: `width:${d.risk_score}%`})),
+      el("span", {className: "fine", style: "margin:0", textContent: `${d.confidence} ${t.conf}`}))));
+
+  const ex = exhibit(message, d.red_flags);
+  const left = el("div", {}, ex.msg);
+  const right = el("div", {}, ex.count ? ex.notes : el("p", {className: "fine", style: "margin:0", textContent: t.nonotes}));
+  if (d.signals.length) right.append(el("details", {}, el("summary", {textContent: t.sig}),
+    el("ul", {className: "plain"}, d.signals.map(s => el("li", {textContent: s})))));
+  box.append(el("section", {className: "blk"}, el("h3", {textContent: t.msg}), el("div", {className: "exhibit"}, left, right)));
+
+  const ev = el("section", {className: "blk"}, el("h3", {textContent: t.ev}));
+  if (d.evidence.length) {
+    ev.append(el("ul", {className: "ev"}, d.evidence.map(e => el("li", {className: `s-${e.supports}`},
+      el("div", {}, el("a", {className: "src", href: safeUrl(e.url), target: "_blank", rel: "noopener noreferrer", textContent: host(e.url)}),
+        el("span", {className: "lab", textContent: t.sup[e.supports]})),
+      el("div", {textContent: e.claim})))));
+  } else ev.append(el("p", {className: "fine", style: "margin:0", textContent: t.none}));
+  box.append(ev);
+
+  const two = el("div", {className: "two"});
+  if (d.what_to_do.length) two.append(el("div", {}, el("h3", {textContent: t.todo}), el("ol", {className: "todo"}, d.what_to_do.map(s => el("li", {textContent: s})))));
+  if (risky) two.append(el("div", {className: "help"}, el("h3", {textContent: t.acted, style: "font-size:18px;margin-bottom:6px"}),
+    el("p", {textContent: t.actedBody}),
+    el("a", {href: "tel:1930", textContent: t.call}),
+    el("a", {href: "https://cybercrime.gov.in", target: "_blank", rel: "noopener noreferrer", textContent: "cybercrime.gov.in"})));
+  if (two.children.length) box.append(el("section", {className: "blk"}, two));
+
+  const m = d.models || {}, tm = d.timings || {};
+  box.append(el("div", {className: "how"}, el("details", {open: true}, el("summary", {textContent: t.how}),
+    el("ul", {},
+      el("li", {}, el("code", {textContent: m.fast || "fast model"}), ` read the message (${tm.extract_s}s)`),
+      el("li", {}, `Tavily searched the live web, ${d.sources_checked} sources (${tm.search_s}s)`),
+      el("li", {}, el("code", {textContent: m.reasoning || "reasoning model"}), ` weighed the evidence (${tm.verdict_s}s)`)))));
+
+  const btn = el("button", {className: "btn2", textContent: t.copy});
+  btn.onclick = async () => {
+    const txt = `ScamShield: ${LABEL[d.verdict][0]} (${d.risk_score}/100)\n${d.headline}\n${d.explanation}`;
+    try { await navigator.clipboard.writeText(txt); btn.textContent = t.copied; } catch { btn.textContent = txt; }
+  };
+  box.append(btn);
+  $("#out").replaceChildren(box);
+  box.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion:reduce)").matches ? "auto" : "smooth", block: "start"});
+}
+
+async function run() {
+  const message = $("#msg").value.trim();
+  if (busy) return;
+  if (message.length < 10) return showError(T[lang].short);
+  busy = true; $("#go").disabled = true;
+  const state = {};
+  showSteps(state);
+  try {
+    const res = await fetch("/api/analyze", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({message, lang})});
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(typeof e.detail === "string" ? e.detail : "Message must be 10 to 3000 characters.");
+    }
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = "", finished = false;
+    for (;;) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+        if (!chunk.startsWith("data: ")) continue;
+        const ev = JSON.parse(chunk.slice(6));
+        if (ev.event === "step") { state[ev.id] = {...state[ev.id], ...ev}; showSteps(state); }
+        else if (ev.event === "result") { finished = true; showResult(ev.data, message); }
+        else if (ev.event === "error") { finished = true; showError(ev.message); }
+      }
+    }
+    if (!finished) showError("The connection closed before a verdict arrived. Please try again.");
+  } catch (e) {
+    showError(e.message || "Something went wrong. Please try again.");
+  } finally {
+    busy = false; $("#go").disabled = false;
+  }
+}
+</script>
+</body>
+</html>
